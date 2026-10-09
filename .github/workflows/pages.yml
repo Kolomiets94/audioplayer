@@ -30,7 +30,7 @@ jobs:
       - run: npm install
       - name: Build portfolio demo
         env:
-          PUBLIC_URL: /--TypeScript-Audioplayer
+          PUBLIC_URL: /audioplayer
         run: npm run build
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
