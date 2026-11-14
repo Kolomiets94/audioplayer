@@ -2,6 +2,7 @@ import React, { act } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 import { Provider } from 'react-redux';
 import { store } from '../store';
+import { RootState } from '../store';
 import { setCurrentTrack, setIsPlaying } from '../store/playerSlice';
 import { useAudio } from './useAudio';
 
@@ -20,8 +21,10 @@ const audioMock = {
   src: '',
 };
 
+let audioControls: ReturnType<typeof useAudio>;
+
 const HookHarness: React.FC = () => {
-  useAudio();
+  audioControls = useAudio();
   return null;
 };
 
@@ -38,6 +41,7 @@ describe('useAudio', () => {
     audioMock.volume = 1;
     audioMock.src = '';
     isMounted = true;
+    store.dispatch(setIsPlaying(false));
     originalAudio = global.Audio;
     (global as any).Audio = jest.fn(() => audioMock);
 
@@ -91,5 +95,48 @@ describe('useAudio', () => {
 
     expect(audioMock.src).toContain('SoundHelix-Song-3.mp3');
     expect(audioMock.play).toHaveBeenCalledTimes(1);
+  });
+
+  it('pauses and resumes playback when the playing state changes', async () => {
+    await act(async () => {
+      store.dispatch(setIsPlaying(true));
+    });
+    expect(audioMock.play).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      store.dispatch(setIsPlaying(false));
+    });
+    expect(audioMock.pause).toHaveBeenCalled();
+
+    await act(async () => {
+      store.dispatch(setIsPlaying(true));
+    });
+    expect(audioMock.play).toHaveBeenCalledTimes(2);
+  });
+
+  it('loads the newly selected track and keeps playback active', async () => {
+    await act(async () => {
+      store.dispatch(setCurrentTrack({ id: '2', title: 'First', artist: 'Artist', duration: 120 }));
+      store.dispatch(setIsPlaying(true));
+    });
+    await act(async () => {
+      store.dispatch(setCurrentTrack({ id: '3', title: 'Second', artist: 'Artist', duration: 120 }));
+    });
+
+    expect(audioMock.src).toContain('SoundHelix-Song-4.mp3');
+    expect(audioMock.load).toHaveBeenCalled();
+    expect(audioMock.play).toHaveBeenCalledTimes(2);
+  });
+
+  it('seeks and skips within the media duration', () => {
+    audioMock.duration = 100;
+    audioControls.seek(30);
+    expect(audioMock.currentTime).toBe(30);
+
+    audioControls.skipForward();
+    expect(audioMock.currentTime).toBe(40);
+
+    audioControls.skipBackward();
+    expect(audioMock.currentTime).toBe(30);
   });
 });
