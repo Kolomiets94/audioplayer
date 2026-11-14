@@ -5,6 +5,8 @@ import { store } from '../store';
 import { setCurrentTrack, setIsPlaying } from '../store/playerSlice';
 import { useAudio } from './useAudio';
 
+(global as any).IS_REACT_ACT_ENVIRONMENT = true;
+
 const audioMock = {
   addEventListener: jest.fn(),
   removeEventListener: jest.fn(),
@@ -27,7 +29,7 @@ describe('useAudio', () => {
   let container: HTMLDivElement;
   let root: Root;
   let isMounted: boolean;
-  let audioConstructor: jest.SpyInstance;
+  let originalAudio: typeof Audio;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -36,9 +38,8 @@ describe('useAudio', () => {
     audioMock.volume = 1;
     audioMock.src = '';
     isMounted = true;
-    audioConstructor = jest.spyOn(window, 'Audio').mockImplementation(
-      () => audioMock as unknown as HTMLAudioElement
-    );
+    originalAudio = global.Audio;
+    (global as any).Audio = jest.fn(() => audioMock);
 
     container = document.createElement('div');
     document.body.appendChild(container);
@@ -57,7 +58,7 @@ describe('useAudio', () => {
     if (isMounted) {
       act(() => root.unmount());
     }
-    audioConstructor.mockRestore();
+    (global as any).Audio = originalAudio;
     container.remove();
   });
 
