@@ -2,7 +2,7 @@ import React, { act } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 import { Provider } from 'react-redux';
 import { store } from '../store';
-import { setCurrentTrack, setIsPlaying } from '../store/playerSlice';
+import { setCurrentTrack, setIsPlaying, setQueue, setQueueIndex } from '../store/playerSlice';
 import { useAudio } from './useAudio';
 
 (global as any).IS_REACT_ACT_ENVIRONMENT = true;
@@ -125,6 +125,28 @@ describe('useAudio', () => {
     expect(audioMock.src).toContain('SoundHelix-Song-4.mp3');
     expect(audioMock.load).toHaveBeenCalled();
     expect(audioMock.play).toHaveBeenCalledTimes(2);
+  });
+
+  it('stops playback when the final queued track ends', async () => {
+    await act(async () => {
+      store.dispatch(setQueue([
+        { id: '1', title: 'First', artist: 'Artist', duration: 120 },
+        { id: '2', title: 'Last', artist: 'Artist', duration: 120 },
+      ]));
+      store.dispatch(setQueueIndex(1));
+      store.dispatch(setIsPlaying(true));
+    });
+
+    const endedHandler = audioMock.addEventListener.mock.calls
+      .find(([eventName]) => eventName === 'ended')?.[1];
+
+    expect(endedHandler).toBeDefined();
+
+    act(() => {
+      endedHandler();
+    });
+
+    expect(store.getState().player.isPlaying).toBe(false);
   });
 
   it('seeks and skips within the media duration', () => {
