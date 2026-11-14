@@ -10,59 +10,72 @@ import {
 export const useAudio = () => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const dispatch = useAppDispatch();
-  
+
   const { currentTrack, isPlaying, volume } = useAppSelector((state) => state.player);
 
   useEffect(() => {
-    if (!audioRef.current) {
-      audioRef.current = new Audio();
-      
-      audioRef.current.addEventListener('timeupdate', () => {
-        if (audioRef.current) {
-          dispatch(setCurrentTime(audioRef.current.currentTime));
-        }
-      });
+    const audio = new Audio();
+    audioRef.current = audio;
 
-      audioRef.current.addEventListener('loadedmetadata', () => {
-        if (audioRef.current) {
-          dispatch(setDuration(audioRef.current.duration));
-        }
-      });
+    const handleTimeUpdate = () => {
+      dispatch(setCurrentTime(audio.currentTime));
+    };
+    const handleLoadedMetadata = () => {
+      dispatch(setDuration(Number.isFinite(audio.duration) ? audio.duration : 0));
+    };
+    const handlePlay = () => dispatch(setIsPlaying(true));
+    const handlePause = () => dispatch(setIsPlaying(false));
+    const handleEnded = () => dispatch(nextTrack());
 
-      audioRef.current.addEventListener('play', () => {
-        dispatch(setIsPlaying(true));
-      });
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('play', handlePlay);
+    audio.addEventListener('pause', handlePause);
+    audio.addEventListener('ended', handleEnded);
 
-      audioRef.current.addEventListener('pause', () => {
-        dispatch(setIsPlaying(false));
-      });
-
-      audioRef.current.addEventListener('ended', () => {
-        dispatch(nextTrack());
-      });
-    }
+    return () => {
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('play', handlePlay);
+      audio.removeEventListener('pause', handlePause);
+      audio.removeEventListener('ended', handleEnded);
+      audio.pause();
+      audio.removeAttribute('src');
+      audio.load();
+      audioRef.current = null;
+    };
   }, [dispatch]);
 
   useEffect(() => {
-    if (audioRef.current && currentTrack) {
-      audioRef.current.src = `https://www.soundhelix.com/examples/mp3/SoundHelix-Song-${(parseInt(currentTrack.id) % 8) + 1}.mp3`;
-      audioRef.current.load();
-      
-      if (isPlaying) {
-        audioRef.current.play().catch(console.error);
-      }
-    }
-  }, [currentTrack]);
+    const audio = audioRef.current;
+    if (!audio || !currentTrack) return;
+
+    audio.src = `https://www.soundhelix.com/examples/mp3/SoundHelix-Song-${(parseInt(currentTrack.id, 10) % 8) + 1}.mp3`;
+    audio.load();
+    dispatch(setCurrentTime(0));
+    dispatch(setDuration(0));
+  }, [currentTrack, dispatch]);
 
   useEffect(() => {
-    if (audioRef.current) {
-      if (isPlaying) {
-        audioRef.current.play().catch(console.error);
-      } else {
-        audioRef.current.pause();
-      }
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    if (!isPlaying) {
+      audio.pause();
+      return;
     }
-  }, [isPlaying]);
+
+    let cancelled = false;
+    void audio.play().catch((error: unknown) => {
+      if (cancelled) return;
+      console.error('Audio playback failed:', error);
+      dispatch(setIsPlaying(false));
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentTrack, dispatch, isPlaying]);
 
   useEffect(() => {
     if (audioRef.current) {
