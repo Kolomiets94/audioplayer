@@ -25,7 +25,7 @@ interface TracksState {
 
 const initialState: TracksState = {
   tracks: initialTracks,
-  favorites: initialTracks.filter(t => t.liked).map(t => t.id),
+  favorites: initialTracks.filter((track) => track.liked).map((track) => track.id),
   searchQuery: '',
   loading: false,
   error: null,
@@ -33,23 +33,45 @@ const initialState: TracksState = {
   hasMore: false,
 };
 
-export const fetchTracks = createAsyncThunk('tracks/fetchTracks', async (page: number) => {
-  try {
+export const fetchTracks = createAsyncThunk(
+  'tracks/fetchTracks',
+  async (page: number) => {
     const data = await api.getTracks();
-    return { tracks: data, page, hasMore: false };
-  } catch {
-    return { tracks: initialTracks, page: 1, hasMore: false };
-  }
-});
 
-export const fetchFavorites = createAsyncThunk('tracks/fetchFavorites', async () => {
-  try {
-    const data = await api.getFavorites();
-    return data.map((t: any) => t.id);
-  } catch {
-    return initialTracks.filter(t => t.liked).map(t => t.id);
+    const tracks: Track[] = data.flatMap((item) => {
+      const id = Number(item.id);
+      if (!Number.isInteger(id)) return [];
+
+      const localTrack = initialTracks.find((track) => track.id === id);
+      if (localTrack) {
+        return [{ ...localTrack, title: item.title, artist: item.artist }];
+      }
+
+      return [{
+        id,
+        title: item.title,
+        artist: item.artist,
+        album: '',
+        duration: '',
+        cover: '',
+        added: '',
+        liked: false,
+      }];
+    });
+
+    return { tracks, page, hasMore: false };
   }
-});
+);
+
+export const fetchFavorites = createAsyncThunk<number[]>(
+  'tracks/fetchFavorites',
+  async () => {
+    const ids = await api.getFavorites();
+    return ids
+      .map(Number)
+      .filter((id) => Number.isInteger(id));
+  }
+);
 
 const tracksSlice = createSlice({
   name: 'tracks',
@@ -57,14 +79,14 @@ const tracksSlice = createSlice({
   reducers: {
     toggleLike: (state, action: PayloadAction<number>) => {
       const id = action.payload;
-      const track = state.tracks.find(t => t.id === id);
-      if (track) {
-        track.liked = !track.liked;
-        if (track.liked) {
-          if (!state.favorites.includes(id)) state.favorites.push(id);
-        } else {
-          state.favorites = state.favorites.filter(fid => fid !== id);
-        }
+      const track = state.tracks.find((item) => item.id === id);
+      if (!track) return;
+
+      track.liked = !track.liked;
+      if (track.liked) {
+        if (!state.favorites.includes(id)) state.favorites.push(id);
+      } else {
+        state.favorites = state.favorites.filter((favoriteId) => favoriteId !== id);
       }
     },
     setSearchQuery: (state, action: PayloadAction<string>) => {
@@ -73,22 +95,30 @@ const tracksSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      .addCase(fetchTracks.pending, (state) => { state.loading = true; state.error = null; })
+      .addCase(fetchTracks.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
       .addCase(fetchTracks.fulfilled, (state, action) => {
         state.loading = false;
         const { tracks: newTracks, page, hasMore } = action.payload;
         if (page === 1) state.tracks = newTracks;
         else state.tracks = [...state.tracks, ...newTracks];
         state.page = page;
-        state.hasMore = hasMore ?? false;
+        state.hasMore = hasMore;
       })
       .addCase(fetchTracks.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message || 'Ошибка загрузки';
+        state.error = action.error.message || 'Ошибка загрузки треков';
       })
       .addCase(fetchFavorites.fulfilled, (state, action: PayloadAction<number[]>) => {
         state.favorites = action.payload;
-        state.tracks.forEach(t => { t.liked = action.payload.includes(t.id); });
+        state.tracks.forEach((track) => {
+          track.liked = action.payload.includes(track.id);
+        });
+      })
+      .addCase(fetchFavorites.rejected, (state, action) => {
+        state.error = action.error.message || 'Ошибка загрузки избранного';
       });
   },
 });

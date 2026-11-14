@@ -6,6 +6,12 @@ export interface User {
   username: string;
 }
 
+export interface ApiTrackResponse {
+  id: string;
+  title: string;
+  artist: string;
+}
+
 export interface AuthResponse {
   message: string;
   token?: string;
@@ -59,13 +65,13 @@ class ApiService {
     }
   }
 
-  async getTracks(): Promise<any[]> {
-    const response = await axios.get(`${API_URL}/tracks`, { headers: this.getHeaders() });
+  async getTracks(): Promise<ApiTrackResponse[]> {
+    const response = await axios.get<ApiTrackResponse[]>(`${API_URL}/tracks`, { headers: this.getHeaders() });
     return response.data;
   }
 
-  async getFavorites(): Promise<any[]> {
-    const response = await axios.get(`${API_URL}/favorites`, { headers: this.getHeaders() });
+  async getFavorites(): Promise<string[]> {
+    const response = await axios.get<string[]>(`${API_URL}/favorites`, { headers: this.getHeaders() });
     return response.data;
   }
 
