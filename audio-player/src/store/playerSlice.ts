@@ -55,6 +55,8 @@ const playerSlice = createSlice({
         state.queueIndex++;
         state.currentTrack = state.queue[state.queueIndex];
         state.currentTime = 0;
+      } else {
+        state.isPlaying = false;
       }
     },
     previousTrack: (state) => {
