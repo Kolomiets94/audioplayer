@@ -1,5 +1,4 @@
-import React from 'react';
-import { act } from 'react-dom/test-utils';
+import React, { act } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 import { Provider } from 'react-redux';
 import { store } from '../store';
@@ -28,6 +27,7 @@ describe('useAudio', () => {
   let container: HTMLDivElement;
   let root: Root;
   let isMounted: boolean;
+  let audioConstructor: jest.SpyInstance;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -36,7 +36,9 @@ describe('useAudio', () => {
     audioMock.volume = 1;
     audioMock.src = '';
     isMounted = true;
-    (global as any).Audio = jest.fn(() => audioMock);
+    audioConstructor = jest.spyOn(window, 'Audio').mockImplementation(
+      () => audioMock as unknown as HTMLAudioElement
+    );
 
     container = document.createElement('div');
     document.body.appendChild(container);
@@ -55,6 +57,7 @@ describe('useAudio', () => {
     if (isMounted) {
       act(() => root.unmount());
     }
+    audioConstructor.mockRestore();
     container.remove();
   });
 
