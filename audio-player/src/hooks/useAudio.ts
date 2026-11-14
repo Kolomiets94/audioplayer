@@ -66,7 +66,7 @@ export const useAudio = () => {
     }
 
     let cancelled = false;
-    void audio.play().catch((error: unknown) => {
+    void Promise.resolve(audio.play()).catch((error: unknown) => {
       if (cancelled) return;
       console.error('Audio playback failed:', error);
       dispatch(setIsPlaying(false));
