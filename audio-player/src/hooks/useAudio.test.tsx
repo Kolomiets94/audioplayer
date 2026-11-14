@@ -69,7 +69,7 @@ describe('useAudio', () => {
     listeners.forEach(([eventName, handler]) => {
       expect(audioMock.removeEventListener).toHaveBeenCalledWith(eventName, handler);
     });
-    expect(audioMock.pause).toHaveBeenCalledTimes(1);
+    expect(audioMock.pause).toHaveBeenCalledTimes(2);
     expect(audioMock.removeAttribute).toHaveBeenCalledWith('src');
     expect(audioMock.load).toHaveBeenCalledTimes(1);
   });
